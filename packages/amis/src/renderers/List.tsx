@@ -4,7 +4,6 @@ import Sortable from 'sortablejs';
 import omit from 'lodash/omit';
 import {
   ScopedContext,
-  evalExpressionWithConditionBuilder,
   filterClassNameObject,
   getMatchedEventTargets,
   getPropValue
@@ -374,10 +373,10 @@ export default class List extends React.Component<ListProps, object> {
         ? resolveVariableAndFilter(source, prevProps.data, '| raw')
         : null;
 
-      if (prev && prev === resolved) {
+      if (prev === resolved) {
         updateItems = false;
-      } else if (Array.isArray(resolved)) {
-        items = resolved;
+      } else {
+        items = Array.isArray(resolved) ? resolved : [];
         updateItems = true;
       }
     }
@@ -1127,7 +1126,14 @@ export class ListRenderer extends List {
     }
   }
 
-  async reload(subPath?: string, query?: any, ctx?: any, args?: any) {
+  async reload(
+    subPath?: string,
+    query?: any,
+    ctx?: any,
+    silent?: boolean,
+    replace?: boolean,
+    args?: any
+  ) {
     const {store} = this.props;
     if (args?.index || args?.condition) {
       // 局部刷新

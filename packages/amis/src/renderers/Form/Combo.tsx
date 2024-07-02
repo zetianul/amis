@@ -10,7 +10,7 @@ import {
   resolveEventData,
   ApiObject,
   FormHorizontal,
-  evalExpressionWithConditionBuilder,
+  evalExpressionWithConditionBuilderAsync,
   IFormStore,
   getVariable,
   IFormItemStore,
@@ -1303,7 +1303,8 @@ export default class ComboControl extends React.Component<ComboProps> {
       changeImmediately,
       addBtnText,
       static: isStatic,
-      translate: __
+      translate: __,
+      testIdBuilder
     } = this.props;
 
     let items = this.props.items;
@@ -1331,6 +1332,7 @@ export default class ComboControl extends React.Component<ComboProps> {
         mode={tabsStyle}
         activeKey={store.activeKey}
         onSelect={this.handleTabSelect}
+        testIdBuilder={testIdBuilder}
         additionBtns={
           !disabled && addable !== false && store.addable ? (
             <li className={cx(`Tabs-link ComboTabs-addLink`)}>
@@ -1341,6 +1343,7 @@ export default class ComboControl extends React.Component<ComboProps> {
       >
         {value.map((value: any, index: number) => {
           const data = this.formatValue(value, index);
+          const tabTIDBuilder = testIdBuilder?.getChild(`tab-${index}`);
           let condition: ComboCondition | null | undefined = null;
           let toolbar = undefined;
           if (
@@ -1357,6 +1360,7 @@ export default class ComboControl extends React.Component<ComboProps> {
                 )}
                 data-tooltip={__('delete')}
                 data-position="bottom"
+                {...tabTIDBuilder?.getChild('delBtn').getTestId()}
               >
                 {deleteIcon ? (
                   <i className={deleteIcon} />
@@ -1409,6 +1413,7 @@ export default class ComboControl extends React.Component<ComboProps> {
               tabClassName={
                 store.memberValidMap[index] === false ? 'has-error' : ''
               }
+              testIdBuilder={tabTIDBuilder}
             >
               {condition && typeSwitchable !== false ? (
                 <div className={cx('Combo-itemTag')}>
@@ -1428,7 +1433,7 @@ export default class ComboControl extends React.Component<ComboProps> {
               ) : null}
               <div className={cx(`Combo-itemInner`)}>
                 {finnalControls ? (
-                  this.renderItems(finnalControls, data, index)
+                  this.renderItems(finnalControls, data, index, value)
                 ) : (
                   <Alert2 level="warning" className="m-b-none">
                     {__('Combo.invalidData')}
@@ -1749,7 +1754,7 @@ export default class ComboControl extends React.Component<ComboProps> {
                   ) : null}
                   <div className={cx(`Combo-itemInner`)}>
                     {finnalControls ? (
-                      this.renderItems(finnalControls, data, index)
+                      this.renderItems(finnalControls, data, index, value)
                     ) : (
                       <Alert2 level="warning" className="m-b-none">
                         {__('Combo.invalidData')}
@@ -1861,7 +1866,12 @@ export default class ComboControl extends React.Component<ComboProps> {
   }
 
   // 为了给 editor 重写使用
-  renderItems(finnalControls: ComboSubControl[], data: object, index?: number) {
+  renderItems(
+    finnalControls: ComboSubControl[],
+    data: object,
+    index?: number,
+    originData?: any
+  ) {
     const {
       classnames: cx,
       formClassName,
@@ -1909,6 +1919,7 @@ export default class ComboControl extends React.Component<ComboProps> {
           disabled: disabled,
           static: isStatic,
           data,
+          originData,
           onChange: this.handleSingleFormChange,
           ref: this.makeFormRef(0),
           onValidChange: this.handleSubFormValid,
@@ -1936,6 +1947,7 @@ export default class ComboControl extends React.Component<ComboProps> {
           disabled,
           static: isStatic,
           data,
+          originData,
           onChange: this.handleChange,
           onInit: this.handleFormInit,
           onAction: this.handleAction,
@@ -2033,7 +2045,7 @@ export class ComboControlRenderer extends ComboControl {
       } else if (condition !== undefined) {
         for (let i = 0; i < len; i++) {
           const item = items[i];
-          const isUpdate = await evalExpressionWithConditionBuilder(
+          const isUpdate = await evalExpressionWithConditionBuilderAsync(
             condition,
             item
           );

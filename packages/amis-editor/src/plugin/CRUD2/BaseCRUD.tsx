@@ -153,6 +153,11 @@ export class BaseCRUDPlugin extends BasePlugin {
           actionLabel: '停止自动刷新',
           description: '停止自动刷新'
         },
+        {
+          actionType: 'reload',
+          actionLabel: '重新加载',
+          description: '触发组件数据刷新并重新渲染'
+        },
         ...(actions || [])
       ],
       'actionType'
@@ -202,7 +207,7 @@ export class BaseCRUDPlugin extends BasePlugin {
               (builder, builderKey) => {
                 return {
                   type: 'container',
-                  visibleOn: `!data.dsType || data.dsType === '${builderKey}'`,
+                  visibleOn: `!this.dsType || this.dsType === '${builderKey}'`,
                   body: flattenDeep([
                     builder.makeSourceSettingForm({
                       feat: DSFeatureEnum.List,
@@ -222,7 +227,7 @@ export class BaseCRUDPlugin extends BasePlugin {
               }
             ),
             getSchemaTpl('primaryField', {
-              visibleOn: `!data.dsType || data.dsType !== '${ModelDSBuilderKey}'`
+              visibleOn: `!this.dsType || this.dsType !== '${ModelDSBuilderKey}'`
             })
           ]
         },
@@ -433,7 +438,7 @@ export class BaseCRUDPlugin extends BasePlugin {
             tabs.push({
               title: item.label,
               icon: item.icon,
-              visibleOn: `(!data.dsType || data.dsType === '${builderKey}') && ${extraVisibleOn}`,
+              visibleOn: `(!this.dsType || this.dsType === '${builderKey}') && ${extraVisibleOn}`,
               body: tabContent
                 .filter(Boolean)
                 .map(formItem => ({...formItem, mode: 'normal'}))
@@ -563,9 +568,9 @@ export class BaseCRUDPlugin extends BasePlugin {
         (builder, builderKey) => {
           return {
             type: 'container',
-            visibleOn: `data.dsType == null ? '${builderKey}' === '${
+            visibleOn: `this.dsType == null ? '${builderKey}' === '${
               defaultDsType || ApiDSBuilderKey
-            }' : data.dsType === '${builderKey}'`,
+            }' : this.dsType === '${builderKey}'`,
             body: builder.makeSourceSettingForm({
               feat: 'List',
               renderer: 'crud',
@@ -607,7 +612,7 @@ export class BaseCRUDPlugin extends BasePlugin {
           type: 'container',
           className: 'ae-ExtendMore mb-3',
           visibleOn:
-            "data.selectable || (data.rowSelection && data.rowSelection?.type !== 'radio')",
+            "this.selectable || (this.rowSelection && this.rowSelection?.type !== 'radio')",
           body: [
             getSchemaTpl('switch', {
               name: 'multiple',
@@ -726,8 +731,8 @@ export class BaseCRUDPlugin extends BasePlugin {
 
   /** 分页类别 */
   renderPaginationCollapse(context: BuildPanelEventContext) {
-    const isPagination = 'data.loadType === "pagination"';
-    const isInfinity = 'data.loadType === "more"';
+    const isPagination = 'this.loadType === "pagination"';
+    const isInfinity = 'this.loadType === "more"';
 
     return {
       order: 30,
@@ -813,7 +818,7 @@ export class BaseCRUDPlugin extends BasePlugin {
             '过滤时刷新',
             '在开启前端分页时，表头过滤后是否重新请求初始化 API'
           ),
-          visibleOn: isPagination + ' && data.loadDataOnce'
+          visibleOn: isPagination + ' && this.loadDataOnce'
         }),
         getSchemaTpl('switch', {
           name: 'keepItemSelectionOnPageChange',
@@ -848,7 +853,7 @@ export class BaseCRUDPlugin extends BasePlugin {
           block: true,
           className: 'mb-1',
           level: 'enhance',
-          visibleOn: 'data.loadType === "pagination"',
+          visibleOn: 'this.loadType === "pagination"',
           onClick: () => {
             const findPage: any = findSchema(
               context?.node?.schema ?? {},
@@ -879,7 +884,7 @@ export class BaseCRUDPlugin extends BasePlugin {
           type: 'ae-switch-more',
           mode: 'normal',
           formType: 'extend',
-          visibleOn: 'data.api',
+          visibleOn: 'this.api',
           label: tipedLabel(
             '接口轮询',
             '开启初始化接口轮询，开启后会按照设定的时间间隔轮询调用接口'
@@ -900,7 +905,7 @@ export class BaseCRUDPlugin extends BasePlugin {
                   '停止条件',
                   '定时刷新停止表达式，条件满足后则停止定时刷新，否则会持续轮询调用初始化接口。'
                 ),
-                visibleOn: '!!data.interval'
+                visibleOn: '!!this.interval'
               }),
               getSchemaTpl('switch', {
                 name: 'stopAutoRefreshWhenModalIsOpen',

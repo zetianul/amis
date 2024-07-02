@@ -51,6 +51,18 @@ export const getArgsWrapper = (
   items: Array.isArray(items) ? items : [items]
 });
 
+const getRootManager = (manager: any) => {
+  let rootManager = manager;
+  while (rootManager) {
+    if (!rootManager.parent) {
+      break;
+    }
+    rootManager = rootManager.parent;
+  }
+
+  return rootManager;
+};
+
 // 数据容器范围
 export const DATA_CONTAINER = [
   'form',
@@ -61,7 +73,8 @@ export const DATA_CONTAINER = [
   'crud',
   'page',
   'app',
-  'chart'
+  'chart',
+  'crud2'
 ];
 
 const MSG_TYPES: {[key: string]: string} = {
@@ -77,12 +90,12 @@ export const SELECT_PROPS_CONTAINER = ['form'];
 // 是否数据容器
 export const IS_DATA_CONTAINER = `${JSON.stringify(
   DATA_CONTAINER
-)}.includes(data.__rendererName)`;
+)}.includes(this.__rendererName)`;
 
 // 是否下拉展示可赋值属性
 export const SHOW_SELECT_PROP = `${JSON.stringify(
   SELECT_PROPS_CONTAINER
-)}.includes(data.__rendererName)`;
+)}.includes(this.__rendererName)`;
 
 // 表单项组件
 export const FORMITEM_CMPTS = [
@@ -395,7 +408,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                   // placeholder: 'http://', 长文本暂不支持
                   size: 'lg',
                   required: true,
-                  visibleOn: 'data.actionType === "url"'
+                  visibleOn: 'this.actionType === "url"'
                 }),
                 {
                   type: 'combo',
@@ -404,6 +417,8 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                   multiple: true,
                   mode: 'horizontal',
                   size: 'lg',
+                  formClassName: 'event-action-combo',
+                  itemClassName: 'event-action-combo-item',
                   items: [
                     {
                       name: 'key',
@@ -413,7 +428,8 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                     getSchemaTpl('formulaControl', {
                       variables: '${variables}',
                       name: 'val',
-                      placeholder: '参数值'
+                      placeholder: '参数值',
+                      columnClassName: 'flex-1'
                     })
                   ]
                 },
@@ -504,7 +520,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
           //           value: 'closeDrawer'
           //         }
           //       ],
-          //       visibleOn: 'data.actionType === "closeDialog"'
+          //       visibleOn: 'this.actionType === "closeDialog"'
           //     }
           //   ]
           // })
@@ -1121,9 +1137,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                 // 找到组件并设置相关的属性
                 let schema = JSONGetById(manager.store.schema, value, 'id');
                 if (schema) {
-                  let __isScopeContainer = !!manager.dataSchema.getScope(
-                    `${schema.$$id}-${schema.type}`
-                  );
+                  let __isScopeContainer = DATA_CONTAINER.includes(schema.type);
                   let __rendererName = schema.type;
                   form.setValues({
                     __isScopeContainer,
@@ -1148,7 +1162,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
               offText: '否',
               mode: 'horizontal',
               pipeIn: defaultValue(true),
-              visibleOn: `data.actionType === "reload" && data.__rendererName === "crud"`
+              visibleOn: `this.actionType === "reload" && this.__rendererName === "crud"`
             },
             {
               type: 'switch',
@@ -1161,7 +1175,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
               offText: '否',
               mode: 'horizontal',
               pipeIn: defaultValue(false),
-              visibleOn: `data.actionType === "reload" &&  data.__isScopeContainer`,
+              visibleOn: `this.actionType === "reload" &&  this.__isScopeContainer`,
               onChange: (value: string, oldVal: any, data: any, form: any) => {
                 form.setValueByName('__containerType', 'all');
               }
@@ -1172,7 +1186,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
               mode: 'horizontal',
               label: '',
               pipeIn: defaultValue('all'),
-              visibleOn: `data.__addParam && data.actionType === "reload" && data.__isScopeContainer`,
+              visibleOn: `this.__addParam && this.actionType === "reload" && this.__isScopeContainer`,
               options: [
                 {
                   label: '直接赋值',
@@ -1195,7 +1209,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
               size: 'lg',
               mode: 'horizontal',
               required: true,
-              visibleOn: `data.__addParam && data.__containerType === "all" && data.actionType === "reload" && data.__isScopeContainer`
+              visibleOn: `this.__addParam && this.__containerType === "all" && this.actionType === "reload" && this.__isScopeContainer`
             }),
             {
               type: 'combo',
@@ -1208,6 +1222,8 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
               canAccessSuperData: true,
               size: 'lg',
               mode: 'horizontal',
+              formClassName: 'event-action-combo',
+              itemClassName: 'event-action-combo-item',
               items: [
                 {
                   name: 'key',
@@ -1220,10 +1236,11 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                 getSchemaTpl('formulaControl', {
                   name: 'val',
                   variables: '${variables}',
-                  placeholder: '参数值'
+                  placeholder: '参数值',
+                  columnClassName: 'flex-1'
                 })
               ],
-              visibleOn: `data.__addParam && data.__containerType === "appoint" && data.actionType === "reload" && data.__isScopeContainer`
+              visibleOn: `this.__addParam && this.__containerType === "appoint" && this.actionType === "reload" && this.__isScopeContainer`
             },
             {
               type: 'radios',
@@ -1234,7 +1251,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                 '选择“合并”时，会将数据合并到目标组件的数据域。<br/>选择“覆盖”时，数据会直接覆盖目标组件的数据域。'
               ),
               pipeIn: defaultValue('merge'),
-              visibleOn: `data.__addParam && data.actionType === "reload" && data.__isScopeContainer`,
+              visibleOn: `this.__addParam && this.actionType === "reload" && this.__isScopeContainer`,
               options: [
                 {
                   label: '合并',
@@ -1330,7 +1347,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
               body: [
                 {
                   type: 'wrapper',
-                  visibleOn: 'data.componentId === "customCmptId"',
+                  visibleOn: 'this.componentId === "customCmptId"',
                   className: 'p-none mb-6',
                   body: [
                     ...renderCmptActionSelect(
@@ -1346,7 +1363,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                 },
                 {
                   type: 'wrapper',
-                  visibleOn: 'data.componentId !== "customCmptId"',
+                  visibleOn: 'this.componentId !== "customCmptId"',
                   className: 'p-none mb-6',
                   body: [
                     ...renderCmptActionSelect(
@@ -1361,11 +1378,14 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                 },
                 renderCmptIdInput(
                   (value: string, oldVal: any, data: any, form: any) => {
+                    // 找到root再查询
+                    const root = getRootManager(manager);
+
                     // 找到组件并设置相关的属性
-                    let schema = JSONGetById(manager.store.schema, value, 'id');
+                    let schema = JSONGetById(root.store.schema, value, 'id');
                     if (schema) {
-                      let __isScopeContainer = !!manager.dataSchema.getScope(
-                        `${schema.$$id}-${schema.type}`
+                      let __isScopeContainer = DATA_CONTAINER.includes(
+                        schema.type
                       );
                       let __rendererName = schema.type;
                       form.setValues({
@@ -1389,7 +1409,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                       mode: 'horizontal',
                       label: '数据设置',
                       pipeIn: defaultValue('all'),
-                      visibleOn: 'data.__isScopeContainer',
+                      visibleOn: 'this.__isScopeContainer',
                       options: [
                         {
                           label: '直接赋值',
@@ -1417,7 +1437,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                       mode: 'horizontal',
                       label: '数据设置',
                       pipeIn: defaultValue('all'),
-                      visibleOn: `data.__rendererName === 'combo' || data.__rendererName === 'input-table'`,
+                      visibleOn: `this.__rendererName === 'combo' || this.__rendererName === 'input-table'`,
                       options: [
                         {
                           label: '全量',
@@ -1447,8 +1467,8 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                       label: '输入序号',
                       size: 'lg',
                       placeholder: '请输入待更新序号',
-                      visibleOn: `(data.__rendererName === 'input-table' || data.__rendererName === 'combo')
-                    && data.__comboType === 'appoint'`
+                      visibleOn: `(this.__rendererName === 'input-table' || this.__rendererName === 'combo')
+                    && this.__comboType === 'appoint'`
                     },
                     {
                       type: 'combo',
@@ -1462,6 +1482,8 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                       canAccessSuperData: true,
                       size: 'lg',
                       mode: 'horizontal',
+                      formClassName: 'event-action-combo',
+                      itemClassName: 'event-action-combo-item',
                       items: [
                         {
                           name: 'key',
@@ -1475,10 +1497,11 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                         getSchemaTpl('formulaControl', {
                           name: 'val',
                           variables: '${variables}',
-                          placeholder: '字段值'
+                          placeholder: '字段值',
+                          columnClassName: 'flex-1'
                         })
                       ],
-                      visibleOn: `data.__isScopeContainer && data.__containerType === 'appoint' || data.__comboType === 'appoint'`
+                      visibleOn: `this.__isScopeContainer && this.__containerType === 'appoint' || this.__comboType === 'appoint'`
                     },
                     {
                       type: 'combo',
@@ -1507,6 +1530,8 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                           className: 'm-l',
                           size: 'lg',
                           mode: 'horizontal',
+                          formClassName: 'event-action-combo',
+                          itemClassName: 'event-action-combo-item',
                           items: [
                             {
                               name: 'key',
@@ -1515,17 +1540,18 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                               labelField: 'label',
                               valueField: 'value',
                               required: true,
-                              visibleOn: `data.__rendererName`
+                              visibleOn: `this.__rendererName`
                             },
                             getSchemaTpl('formulaControl', {
                               name: 'val',
-                              variables: '${variables}'
+                              variables: '${variables}',
+                              columnClassName: 'flex-1'
                             })
                           ]
                         }
                       ],
-                      visibleOn: `(data.__rendererName === 'combo' || data.__rendererName === 'input-table')
-                    && data.__comboType === 'all'`
+                      visibleOn: `(this.__rendererName === 'combo' || this.__rendererName === 'input-table')
+                    && this.__comboType === 'all'`
                     },
                     getSchemaTpl('formulaControl', {
                       name: '__valueInput',
@@ -1533,7 +1559,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                       variables: '${variables}',
                       size: 'lg',
                       mode: 'horizontal',
-                      visibleOn: `(data.__isScopeContainer || ${SHOW_SELECT_PROP}) && data.__containerType === 'all'`,
+                      visibleOn: `(this.__isScopeContainer || ${SHOW_SELECT_PROP}) && this.__containerType === 'all'`,
                       required: true
                     }),
                     getSchemaTpl('formulaControl', {
@@ -1542,7 +1568,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                       variables: '${variables}',
                       size: 'lg',
                       mode: 'horizontal',
-                      visibleOn: `data.__rendererName && !data.__isScopeContainer && data.__rendererName !== 'combo' && data.__rendererName !== 'input-table'`,
+                      visibleOn: `this.__rendererName && !this.__isScopeContainer && this.__rendererName !== 'combo' && this.__rendererName !== 'input-table'`,
                       required: true
                     })
                   ]
@@ -1849,7 +1875,7 @@ export const ACTION_TYPE_TREE = (manager: any): RendererPluginAction[] => {
                 variables: '${variables}',
                 mode: 'horizontal',
                 size: 'lg',
-                visibleOn: 'data.actionType === "copy"',
+                visibleOn: 'this.actionType === "copy"',
                 required: true
               }),
               {
@@ -2038,7 +2064,7 @@ export const renderCmptActionSelect = (
       required: true,
       label: '组件id',
       visibleOn:
-        'data.componentId === "customCmptId" && data.actionType === "component"',
+        'this.componentId === "customCmptId" && this.actionType === "component"',
       onChange: async (value: string, oldVal: any, data: any, form: any) => {
         let schema = JSONGetById(manager!.store.schema, value, 'id');
         if (schema) {
@@ -2058,7 +2084,7 @@ export const renderCmptActionSelect = (
       name: 'groupType',
       mode: 'horizontal',
       required: true,
-      visibleOn: 'data.actionType === "component"',
+      visibleOn: 'this.actionType === "component"',
       component: CmptActionSelect,
       description: '${__cmptActionDesc}'
     }
@@ -2075,7 +2101,7 @@ export const renderCmptIdInput = (
     size: 'lg',
     required: true,
     label: '组件id',
-    visibleOn: 'data.componentId === "customCmptId"',
+    visibleOn: 'this.componentId === "customCmptId"',
     onChange: async (value: string, oldVal: any, data: any, form: any) => {
       onChange?.(value, oldVal, data, form);
     }
@@ -2118,7 +2144,7 @@ export const COMMON_ACTION_SCHEMA_MAP: {
           mode: 'horizontal',
           label: '数据设置',
           pipeIn: defaultValue('all'),
-          visibleOn: 'data.__isScopeContainer',
+          visibleOn: 'this.__isScopeContainer',
           options: [
             {
               label: '直接赋值',
@@ -2141,7 +2167,7 @@ export const COMMON_ACTION_SCHEMA_MAP: {
           mode: 'horizontal',
           label: '数据设置',
           pipeIn: defaultValue('all'),
-          visibleOn: `data.__rendererName === 'combo' || data.__rendererName === 'input-table'`,
+          visibleOn: `this.__rendererName === 'combo' || this.__rendererName === 'input-table'`,
           options: [
             {
               label: '全量',
@@ -2166,8 +2192,8 @@ export const COMMON_ACTION_SCHEMA_MAP: {
           label: '输入序号',
           size: 'lg',
           placeholder: '请输入待更新序号',
-          visibleOn: `(data.__rendererName === 'input-table' || data.__rendererName === 'combo')
-      && data.__comboType === 'appoint'`
+          visibleOn: `(this.__rendererName === 'input-table' || this.__rendererName === 'combo')
+      && this.__comboType === 'appoint'`
         },
         {
           type: 'combo',
@@ -2181,6 +2207,8 @@ export const COMMON_ACTION_SCHEMA_MAP: {
           canAccessSuperData: true,
           size: 'lg',
           mode: 'horizontal',
+          formClassName: 'event-action-combo',
+          itemClassName: 'event-action-combo-item',
           items: [
             {
               name: 'key',
@@ -2194,10 +2222,11 @@ export const COMMON_ACTION_SCHEMA_MAP: {
             getSchemaTpl('formulaControl', {
               name: 'val',
               variables: '${variables}',
-              placeholder: '字段值'
+              placeholder: '字段值',
+              columnClassName: 'flex-1'
             })
           ],
-          visibleOn: `data.__isScopeContainer && data.__containerType === 'appoint' || data.__comboType === 'appoint'`
+          visibleOn: `this.__isScopeContainer && this.__containerType === 'appoint' || this.__comboType === 'appoint'`
         },
         {
           type: 'combo',
@@ -2226,6 +2255,8 @@ export const COMMON_ACTION_SCHEMA_MAP: {
               className: 'm-l',
               size: 'lg',
               mode: 'horizontal',
+              formClassName: 'event-action-combo',
+              itemClassName: 'event-action-combo-item',
               items: [
                 {
                   name: 'key',
@@ -2234,17 +2265,18 @@ export const COMMON_ACTION_SCHEMA_MAP: {
                   labelField: 'label',
                   valueField: 'value',
                   required: true,
-                  visibleOn: `data.__rendererName`
+                  visibleOn: `this.__rendererName`
                 },
                 getSchemaTpl('formulaControl', {
                   name: 'val',
-                  variables: '${variables}'
+                  variables: '${variables}',
+                  columnClassName: 'flex-1'
                 })
               ]
             }
           ],
-          visibleOn: `(data.__rendererName === 'combo' || data.__rendererName === 'input-table')
-      && data.__comboType === 'all'`
+          visibleOn: `(this.__rendererName === 'combo' || this.__rendererName === 'input-table')
+      && this.__comboType === 'all'`
         },
         getSchemaTpl('formulaControl', {
           name: '__valueInput',
@@ -2252,7 +2284,7 @@ export const COMMON_ACTION_SCHEMA_MAP: {
           variables: '${variables}',
           size: 'lg',
           mode: 'horizontal',
-          visibleOn: `(data.__isScopeContainer || ${SHOW_SELECT_PROP}) && data.__containerType === 'all'`,
+          visibleOn: `(this.__isScopeContainer || ${SHOW_SELECT_PROP}) && this.__containerType === 'all'`,
           required: true
         }),
         getSchemaTpl('formulaControl', {
@@ -2261,7 +2293,7 @@ export const COMMON_ACTION_SCHEMA_MAP: {
           variables: '${variables}',
           size: 'lg',
           mode: 'horizontal',
-          visibleOn: `data.__rendererName && !data.__isScopeContainer && data.__rendererName !== 'combo' && data.__rendererName !== 'input-table'`,
+          visibleOn: `this.__rendererName && !this.__isScopeContainer && this.__rendererName !== 'combo' && this.__rendererName !== 'input-table'`,
           required: true,
           horizontal: {
             leftFixed: true
@@ -2636,7 +2668,7 @@ export const getOldActionSchema = (
               {
                 type: 'input-text',
                 name: 'content',
-                visibleOn: 'data.actionType == "copy"',
+                visibleOn: 'this.actionType == "copy"',
                 label: '复制内容模板'
               },
 
@@ -2653,14 +2685,14 @@ export const getOldActionSchema = (
                     value: 'text/html'
                   }
                 ],
-                visibleOn: 'data.actionType == "copy"',
+                visibleOn: 'this.actionType == "copy"',
                 label: '复制格式'
               },
 
               {
                 type: 'input-text',
                 name: 'target',
-                visibleOn: 'data.actionType == "reload"',
+                visibleOn: 'this.actionType == "reload"',
                 label: '指定刷新目标',
                 required: true
               },
@@ -2724,7 +2756,7 @@ export const getOldActionSchema = (
 
               getSchemaTpl('api', {
                 label: '目标API',
-                visibleOn: 'data.actionType == "ajax"'
+                visibleOn: 'this.actionType == "ajax"'
               }),
 
               {
@@ -2796,21 +2828,21 @@ export const getOldActionSchema = (
                 type: 'input-text',
                 label: '目标地址',
                 name: 'link',
-                visibleOn: 'data.actionType == "link"'
+                visibleOn: 'this.actionType == "link"'
               },
 
               {
                 type: 'input-text',
                 label: '目标地址',
                 name: 'url',
-                visibleOn: 'data.actionType == "url"',
+                visibleOn: 'this.actionType == "url"',
                 placeholder: 'http://'
               },
 
               {
                 type: 'switch',
                 name: 'blank',
-                visibleOn: 'data.actionType == "url"',
+                visibleOn: 'this.actionType == "url"',
                 mode: 'inline',
                 className: 'w-full',
                 label: '是否用新窗口打开',
@@ -2820,7 +2852,7 @@ export const getOldActionSchema = (
               isInDialog
                 ? {
                     visibleOn:
-                      'data.actionType == "submit" || data.type == "submit"',
+                      'this.actionType == "submit" || this.type == "submit"',
                     name: 'close',
                     type: 'switch',
                     mode: 'inline',
@@ -2843,7 +2875,7 @@ export const getOldActionSchema = (
                 name: 'reload',
                 label: '刷新目标组件',
                 visibleOn:
-                  'data.actionType != "link" && data.actionType != "url"',
+                  'this.actionType != "link" && this.actionType != "url"',
                 description:
                   '当前动作完成后，指定目标组件刷新。支持传递数据如：<code>xxx?a=\\${a}&b=\\${b}</code>，多个目标请用英文逗号隔开。'
               },
@@ -2851,7 +2883,7 @@ export const getOldActionSchema = (
               {
                 type: 'input-text',
                 name: 'target',
-                visibleOn: 'data.actionType != "reload"',
+                visibleOn: 'this.actionType != "reload"',
                 label: '指定响应组件',
                 description:
                   '指定动作执行者，默认为当前组件所在的功能性性组件，如果指定则转交给目标组件来处理。'
@@ -2939,9 +2971,8 @@ export const getEventControlConfig = (
     } else if (Array.isArray(action.supportComponents)) {
       isSupport = action.supportComponents.includes(node.type);
     }
-    node.isScopeContainer = !!manager.dataSchema.getScope(
-      `${node.id}-${node.type}`
-    );
+
+    node.isScopeContainer = DATA_CONTAINER.includes(node.type);
     if (actionType === 'component' && !actions?.length) {
       node.disabled = true;
     }
@@ -3157,11 +3188,10 @@ export const getEventControlConfig = (
         }
 
         if (['setValue'].includes(action.actionType)) {
-          let schema = JSONGetById(manager.store.schema, config.__cmptId, 'id');
+          const root = getRootManager(manager);
+          let schema = JSONGetById(root.store.schema, config.__cmptId, 'id');
           if (schema) {
-            let __isScopeContainer = !!manager.dataSchema.getScope(
-              `${schema.$$id}-${schema.type}`
-            );
+            let __isScopeContainer = DATA_CONTAINER.includes(schema.type);
             config.__isScopeContainer = __isScopeContainer;
             config.__rendererName = schema.type;
           }

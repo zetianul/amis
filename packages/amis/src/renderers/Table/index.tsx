@@ -16,7 +16,6 @@ import {
   SchemaExpression,
   position,
   animation,
-  evalExpressionWithConditionBuilder,
   isEffectiveApi,
   Renderer,
   RendererProps,
@@ -711,11 +710,11 @@ export default class Table extends React.Component<TableProps, object> {
         ? resolveVariableAndFilter(source, prevProps.data, '| raw')
         : null;
 
-      if (prev && prev === resolved) {
+      if (prev === resolved) {
         updateRows = false;
-      } else if (Array.isArray(resolved)) {
+      } else {
         updateRows = true;
-        rows = resolved;
+        rows = Array.isArray(resolved) ? resolved : [];
       }
     }
 
@@ -1693,7 +1692,8 @@ export default class Table extends React.Component<TableProps, object> {
       query,
       data,
       autoGenerateFilter,
-      testIdBuilder
+      testIdBuilder,
+      filterCanAccessSuperData = true
     } = this.props;
 
     const searchableColumns = store.searchableColumns;
@@ -1708,6 +1708,7 @@ export default class Table extends React.Component<TableProps, object> {
         translate={__}
         classnames={cx}
         render={render}
+        canAccessSuperData={filterCanAccessSuperData}
         autoGenerateFilter={autoGenerateFilter}
         onSearchableFromReset={onSearchableFromReset}
         onSearchableFromSubmit={onSearchableFromSubmit}
@@ -2446,7 +2447,8 @@ export default class Table extends React.Component<TableProps, object> {
         loading: store.exportExcelLoading,
         onAction: () => {
           store.update({exportExcelLoading: true});
-          import('exceljs').then(async (ExcelJS: any) => {
+          import('exceljs').then(async (E: any) => {
+            const ExcelJS = E.default || E;
             try {
               await exportExcel(ExcelJS, this.props, toolbar);
             } catch (error) {
@@ -2480,7 +2482,8 @@ export default class Table extends React.Component<TableProps, object> {
       },
       {
         onAction: () => {
-          import('exceljs').then(async (ExcelJS: any) => {
+          import('exceljs').then(async (E: any) => {
+            const ExcelJS = E.default || E;
             try {
               await exportExcel(ExcelJS, this.props, toolbar, true);
             } catch (error) {
@@ -2890,7 +2893,14 @@ export class TableRenderer extends Table {
     );
   }
 
-  async reload(subPath?: string, query?: any, ctx?: any, args?: any) {
+  async reload(
+    subPath?: string,
+    query?: any,
+    ctx?: any,
+    silent?: boolean,
+    replace?: boolean,
+    args?: any
+  ) {
     if (args?.index || args?.condition) {
       // 局部刷新
       const targets = await this.getEventTargets(

@@ -30,7 +30,7 @@ import {
   isArrayChildrenModified,
   filterTarget,
   changedEffect,
-  evalExpressionWithConditionBuilder,
+  evalExpressionWithConditionBuilderAsync,
   normalizeApi,
   getPropValue
 } from 'amis-core';
@@ -806,7 +806,7 @@ export default class Table2 extends React.Component<Table2Props, object> {
   }
 
   renderCellSchema(schema: any, props: any) {
-    const {render} = this.props;
+    const {render, store} = this.props;
 
     // Table Cell SchemaObject转化成ReactNode
     if (schema && isObject(schema)) {
@@ -960,12 +960,16 @@ export default class Table2 extends React.Component<Table2Props, object> {
               const obj = {
                 children: this.renderCellSchema(column, {
                   data: item.locals,
-                  value: column.name
-                    ? resolveVariable(
-                        column.name,
-                        finalCanAccessSuperData ? item.locals : item.data
-                      )
-                    : column.name,
+                  // 不要下发 value，组件基本上都会自己取
+                  // 如果下发了表单项会认为是 controlled value
+                  // 就不会去跑 extraName 之类的逻辑了
+                  // value: column.name
+                  //   ? resolveVariable(
+                  //       column.name,
+                  //       finalCanAccessSuperData ? item.locals : item.data
+                  //     )
+                  //   : column.name,
+                  btnDisabled: store.dragging,
                   popOverContainer:
                     popOverContainer || this.getPopOverContainer,
                   quickEditFormRef: this.subFormRef,
@@ -2182,7 +2186,7 @@ export class TableRenderer extends Table2 {
       let items = [...store.data.rows];
       for (let i = 0; i < len; i++) {
         const item = items[i];
-        const isUpdate = await evalExpressionWithConditionBuilder(
+        const isUpdate = await evalExpressionWithConditionBuilderAsync(
           condition,
           item
         );

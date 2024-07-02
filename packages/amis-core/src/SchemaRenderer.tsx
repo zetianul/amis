@@ -42,6 +42,7 @@ export const RENDERER_TRANSMISSION_OMIT_PROPS = [
   'className',
   'style',
   'data',
+  'originData',
   'children',
   'ref',
   'visible',
@@ -225,6 +226,12 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
       ref = ref.getWrappedInstance();
     }
 
+    if (ref && !ref.props) {
+      Object.defineProperty(ref, 'props', {
+        get: () => this.props
+      });
+    }
+
     this.cRef = ref;
   }
 
@@ -288,6 +295,7 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
       rootStore,
       statusStore,
       render,
+      key: propKey,
       ...rest
     } = this.props;
 
@@ -342,6 +350,8 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
         ? null
         : React.isValidElement(schema.children)
         ? schema.children
+        : typeof schema.children !== 'function'
+        ? null
         : (schema.children as Function)({
             ...rest,
             ...exprProps,
@@ -359,7 +369,6 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
         data: defaultData,
         value: defaultValue, // render时的value改放defaultValue中
         activeKey: defaultActiveKey,
-        key: propKey,
         ...restSchema
       } = schema;
       return rest.invisible
@@ -419,7 +428,6 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
     const {
       data: defaultData,
       value: defaultValue,
-      key: propKey,
       activeKey: defaultActiveKey,
       ...restSchema
     } = schema;
@@ -445,8 +453,10 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
       exprProps = {};
     }
 
-    const isClassComponent = Component.prototype?.isReactComponent;
-    let props = {
+    const supportRef =
+      Component.prototype?.isReactComponent ||
+      (Component as any).$$typeof === Symbol.for('react.forward_ref');
+    let props: any = {
       ...theme.getRendererConfig(renderer.name),
       ...restSchema,
       ...chainEvents(rest, restSchema),
@@ -458,7 +468,6 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
       propKey: propKey,
       $path: $path,
       $schema: schema,
-      ref: this.refFn,
       render: this.renderChild,
       rootStore,
       statusStore,
@@ -502,10 +511,10 @@ export class SchemaRenderer extends React.Component<SchemaRendererProps, any> {
       }
     }
 
-    const component = isClassComponent ? (
+    const component = supportRef ? (
       <Component {...props} ref={this.childRef} />
     ) : (
-      <Component {...props} />
+      <Component {...props} forwardedRef={this.childRef} />
     );
 
     return this.props.env.enableAMISDebug ? (

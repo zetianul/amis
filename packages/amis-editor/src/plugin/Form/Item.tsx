@@ -129,7 +129,7 @@ export class ItemPlugin extends BasePlugin {
             getSchemaTpl('horizontal', {
               label: '',
               visibleOn:
-                'data.mode == "horizontal" && data.label !== false && data.horizontal'
+                'this.mode == "horizontal" && this.label !== false && this.horizontal'
             }),
 
             renderer.sizeMutable !== false
@@ -222,18 +222,11 @@ export class ItemPlugin extends BasePlugin {
       context.info.renderer.isFormItem &&
       context.diff?.some(change => change.path?.join('.') === 'value')
     ) {
-      const change: any = find(
-        context.diff,
-        change => change.path?.join('.') === 'value'
-      )!;
-      const component = this.manager.store
-        .getNodeById(context.id)
-        ?.getComponent();
-
-      let value = change?.rhs;
+      let value = context.value.value;
+      const component = context.node?.getComponent();
 
       if (typeof value === 'string' && isExpression(value)) {
-        const data = event.context.node?.getComponent()?.props.data || {};
+        const data = component?.props.data || {};
         value = resolveVariableAndFilter(value, data, '| raw');
       }
       component?.props.onChange(value);
@@ -268,6 +261,9 @@ export class ItemPlugin extends BasePlugin {
     {id, schema, region, selections}: ContextMenuEventContext,
     menus: Array<ContextMenuItem>
   ) {
+    if (this.manager.store.toolbarMode === 'mini') {
+      return;
+    }
     if (!selections.length || selections.length > 3) {
       // 单选或者超过3个选中态时直接返回
       return;

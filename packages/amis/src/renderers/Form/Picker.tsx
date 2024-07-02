@@ -141,10 +141,7 @@ export default class PickerControl extends React.PureComponent<
     labelField: 'label',
     valueField: 'value',
     pickerSchema: {
-      mode: 'list',
-      listItem: {
-        title: '${label|raw}'
-      }
+      mode: 'list'
     },
     embed: false,
     overflowConfig: {
@@ -263,11 +260,15 @@ export default class PickerControl extends React.PureComponent<
 
     return {
       checkOnItemClick: true,
+      listItem: {
+        title: `\${${props.labelField || 'label'}|raw}`
+      },
       ...props.pickerSchema,
       labelTpl: props.pickerSchema?.labelTpl ?? props.labelTpl,
       type: 'crud',
       pickerMode: true,
       syncLocation: false,
+      filterCanAccessSuperData: false,
       api: isScopeData ? null : props.source,
       source: isScopeData ? props.source : null,
       keepItemSelectionOnPageChange: true,

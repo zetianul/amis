@@ -24,7 +24,7 @@ import {
   getRendererByName,
   resolveEventData,
   ListenerAction,
-  evalExpressionWithConditionBuilder,
+  evalExpressionWithConditionBuilderAsync,
   mapTree,
   isObject,
   eachTree,
@@ -38,8 +38,6 @@ import {TableSchema} from '../Table';
 import {SchemaApi, SchemaCollection, SchemaClassName} from '../../Schema';
 import find from 'lodash/find';
 import moment from 'moment';
-import merge from 'lodash/merge';
-import mergeWith from 'lodash/mergeWith';
 
 import type {SchemaTokenizeableString} from '../../Schema';
 
@@ -77,6 +75,12 @@ export interface TableControlSchema
    * 是否显示复制按钮
    */
   copyAddBtn?: boolean;
+
+  /**
+   * 复制的时候用来配置复制映射的数据。默认值是 {&:$$}，相当与复制整个行数据
+   * 通常有时候需要用来标记是复制过来的，也可能需要删掉一下主键字段。
+   */
+  copyData?: Record<string, any>;
 
   /**
    * 是否可以拖拽排序
@@ -322,6 +326,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
 
   constructor(props: TableProps) {
     super(props);
+    const {addHook} = props;
 
     this.state = {
       columns: this.buildColumns(props),
@@ -352,6 +357,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
     // Form会向FormItem下发disabled属性，disbaled 属性值也需要同步到
     if (
       prevProps.disabled !== props.disabled ||
+      prevProps.static !== props.static ||
       props.$schema.disabled !== prevProps.$schema.disabled ||
       props.$schema.static !== prevProps.$schema.static
     ) {
@@ -371,7 +377,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
       };
     }
 
-    if (props.value !== prevProps.value) {
+    if (props.value !== prevProps.value && props.value !== this.emittedValue) {
       toUpdate = {
         ...toUpdate,
         items: Array.isArray(props.value) ? props.value.concat() : [],
@@ -496,12 +502,17 @@ export default class FormTable extends React.Component<TableProps, TableState> {
     return msg;
   }
 
+  emittedValue: any = null;
   async emitValue(value?: any[]) {
     const items =
       value ?? this.state.items.filter(item => !item.__isPlaceholder);
     const {onChange} = this.props;
     const isPrevented = await this.dispatchEvent('change');
-    isPrevented || onChange?.(items);
+    if (!isPrevented) {
+      this.emittedValue = items;
+      onChange?.(items);
+    }
+
     return isPrevented;
   }
 
@@ -618,20 +629,22 @@ export default class FormTable extends React.Component<TableProps, TableState> {
   }
 
   async copyItem(index: string) {
-    const {needConfirm} = this.props;
+    const {needConfirm, data, copyData = {'&': '$$'}} = this.props;
     let items = this.state.items.concat();
     const indexes = index.split('.').map(item => parseInt(item, 10));
     const next = indexes.concat();
     next[next.length - 1] += 1;
 
     const originItems = items;
+    const src = getTree(items, indexes);
+    const item = dataMapping(copyData, createObject(data, src));
     if (needConfirm === false) {
-      items = spliceTree(items, next, 0, getTree(items, indexes));
+      items = spliceTree(items, next, 0, item);
     } else {
       // 复制相当于新增一行
       // 需要同addItem一致添加__placeholder属性
       items = spliceTree(items, next, 0, {
-        ...getTree(items, indexes),
+        ...item,
         __isPlaceholder: true
       });
     }
@@ -646,7 +659,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
         const isPrevented = await this.dispatchEvent('add', {
           index: next[next.length - 1],
           indexPath: next.join('.'),
-          item: getTree(items, next)
+          item: item
         });
         if (isPrevented) {
           return;
@@ -709,7 +722,10 @@ export default class FormTable extends React.Component<TableProps, TableState> {
       });
     }
 
-    value = merge({}, value, scaffold);
+    value = {
+      ...value,
+      ...scaffold
+    };
 
     if (needConfirm === false) {
       delete value.__isPlaceholder;
@@ -746,7 +762,7 @@ export default class FormTable extends React.Component<TableProps, TableState> {
           await this.dispatchEvent('add', {
             index: next[next.length - 1],
             indexPath: next.join('.'),
-            value
+            item: value
           });
         }
         if (needConfirm === false) {
@@ -886,11 +902,12 @@ export default class FormTable extends React.Component<TableProps, TableState> {
       });
       return;
     } else if (remote && remote.ok) {
-      item = merge(
-        {},
-        ((isNew ? addApi : updateApi) as ApiObject).replaceData ? {} : item,
-        remote.data
-      );
+      item = {
+        ...(((isNew ? addApi : updateApi) as ApiObject).replaceData
+          ? {}
+          : item),
+        ...remote.data
+      };
     }
 
     delete item.__isPlaceholder;
@@ -1021,18 +1038,25 @@ export default class FormTable extends React.Component<TableProps, TableState> {
     newValue = spliceTree(newValue, indexes, 1);
     this.reUseRowId(newValue, originItems, indexes);
 
-    // change value
-    const prevented = await this.emitValue(newValue);
-    if (prevented) {
-      return;
-    }
+    this.setState(
+      {
+        items: newValue
+      },
+      async () => {
+        // change value
+        const prevented = await this.emitValue(newValue);
+        if (prevented) {
+          return;
+        }
 
-    this.dispatchEvent('deleteSuccess', {
-      value: newValue,
-      index: indexes[indexes.length - 1],
-      indexPath: indexes.join('.'),
-      item
-    });
+        this.dispatchEvent('deleteSuccess', {
+          value: newValue,
+          index: indexes[indexes.length - 1],
+          indexPath: indexes.join('.'),
+          item
+        });
+      }
+    );
   }
 
   rowPathPlusOffset(path: string, offset = 0) {
@@ -1263,10 +1287,15 @@ export default class FormTable extends React.Component<TableProps, TableState> {
                     quickEdit: {
                       ...this.columnToQuickEdit(column),
                       ...quickEdit,
+                      // 因为列本身已经做过显隐判断了，单元格不应该再处理
+                      visibleOn: '',
+                      hiddenOn: '',
+                      visible: true,
+                      hidden: false,
                       saveImmediately: true,
                       mode: 'inline',
                       disabled,
-                      static: isStatic
+                      static: isStatic || column.static
                     }
                   })
             };
@@ -1291,6 +1320,11 @@ export default class FormTable extends React.Component<TableProps, TableState> {
                 quickEdit: {
                   ...this.columnToQuickEdit(column),
                   ...quickEdit,
+                  // 因为列本身已经做过显隐判断了，单元格不应该再处理
+                  visibleOn: '',
+                  hiddenOn: '',
+                  visible: true,
+                  hidden: false,
                   isQuickEditFormMode: !!render?.isFormItem,
                   saveImmediately: true,
                   mode: 'inline',
@@ -1457,6 +1491,11 @@ export default class FormTable extends React.Component<TableProps, TableState> {
             ...column,
             quickEdit: {
               ...column,
+              // 因为列本身已经做过显隐判断了，单元格不应该再处理
+              visibleOn: '',
+              hiddenOn: '',
+              visible: true,
+              hidden: false,
               isFormMode: true
             }
           };
@@ -1636,8 +1675,10 @@ export default class FormTable extends React.Component<TableProps, TableState> {
             if (page && page > 1 && typeof perPage === 'number') {
               indexes[0] += (page - 1) * perPage;
             }
-            const origin = getTree(items, indexes);
-            const data = merge({}, origin, (diff as Array<object>)[index]);
+            // const origin = getTree(items, indexes);
+            const data = {
+              ...getTree(rows, indexes)
+            };
 
             items = spliceTree(items, indexes, 1, data);
           });
@@ -1650,35 +1691,9 @@ export default class FormTable extends React.Component<TableProps, TableState> {
             indexes[0] += (page - 1) * perPage;
           }
 
-          const origin = getTree(items, indexes);
+          // const origin = getTree(items, indexes);
 
-          const comboNames: Array<string> = [];
-          (props.$schema.columns ?? []).forEach((e: any) => {
-            if (e.type === 'combo' && !Array.isArray(diff)) {
-              comboNames.push(e.name);
-            }
-          });
-
-          const data = mergeWith(
-            {},
-            origin,
-            diff,
-            (
-              objValue: any,
-              srcValue: any,
-              key: string,
-              object: any,
-              source: any,
-              stack: any
-            ) => {
-              if (Array.isArray(objValue) && Array.isArray(srcValue)) {
-                // 处理combo
-                return srcValue;
-              }
-              // 直接return，默认走的mergeWith自身的merge
-              return;
-            }
-          );
+          const data = {...rows};
 
           const originItems = items;
           items = spliceTree(items, indexes, 1, data);
@@ -1971,7 +1986,7 @@ export class TableControlRenderer extends FormTable {
       const promises: Array<() => Promise<any>> = [];
       everyTree(items, (item, index, paths, indexes) => {
         promises.unshift(async () => {
-          const isUpdate = await evalExpressionWithConditionBuilder(
+          const isUpdate = await evalExpressionWithConditionBuilderAsync(
             condition,
             item
           );
@@ -2107,7 +2122,7 @@ export class TableControlRenderer extends FormTable {
         const promises: Array<() => Promise<any>> = [];
         everyTree(items, (item, index, paths, indexes) => {
           promises.unshift(async () => {
-            const result = await evalExpressionWithConditionBuilder(
+            const result = await evalExpressionWithConditionBuilderAsync(
               args?.condition,
               item
             );

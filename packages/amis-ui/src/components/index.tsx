@@ -75,7 +75,7 @@ import VariableList from './formula/VariableList';
 import FormulaPicker from './formula/Picker';
 import {FormulaEditor} from './formula/Editor';
 import FormulaCodeEditor from './formula/CodeEditor';
-import type {VariableItem} from './formula/CodeEditor';
+import type {VariableItem, FuncGroup} from './formula/CodeEditor';
 import PickerContainer from './PickerContainer';
 import InputJSONSchema from './json-schema';
 import {Badge, withBadge} from './Badge';
@@ -132,6 +132,7 @@ import {CodeMirrorEditor} from './CodeMirror';
 import type CodeMirror from 'codemirror';
 import OverflowTpl from './OverflowTpl';
 import Signature from './Signature';
+import VerificationCode from './VerificationCode';
 
 export {
   NotFound,
@@ -207,6 +208,7 @@ export {
   FormulaPicker,
   FormulaCodeEditor,
   VariableItem,
+  FuncGroup,
   FormulaEditor,
   InputJSONSchema,
   withBadge,
@@ -268,5 +270,6 @@ export {
   CodeMirror,
   CodeMirrorEditor,
   OverflowTpl,
-  Signature
+  Signature,
+  VerificationCode
 };
