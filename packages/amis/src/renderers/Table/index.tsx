@@ -75,6 +75,7 @@ import ColumnToggler from './ColumnToggler';
 import {exportExcel} from './exportExcel';
 import AutoFilterForm from './AutoFilterForm';
 import Cell from './Cell';
+import VCell from './VCell';
 
 import type {IColumn, IRow} from 'amis-core';
 
@@ -660,7 +661,8 @@ export default class Table<
       tableLayout,
       resolveDefinitions,
       showIndex,
-      persistKey
+      persistKey,
+      useVirtualList
     } = props;
 
     let combineNum = props.combineNum;
@@ -923,7 +925,8 @@ export default class Table<
           const rect1 = selfNode.getBoundingClientRect();
           const rect2 = nextSibling.getBoundingClientRect();
 
-          if (rect1.bottom <= rect2.top) {
+          // 浏览器缩放/扩大的时候会出现精度问题
+          if (rect1.bottom - rect2.top <= 0.5) {
             nextSiblingHeight +=
               nextSibling.offsetHeight +
               getStyleNumber(nextSibling, 'margin-bottom');
@@ -2267,11 +2270,16 @@ export default class Table<
       itemBadge,
       translate,
       testIdBuilder,
-      filterItemIndex
+      filterItemIndex,
+      offset
     } = this.props;
 
+    // 如果列数大于20，并且列不是固定列，则使用按需渲染模式
+    const Comp =
+      store.filteredColumns.length > 20 && !column.fixed ? VCell : Cell;
+
     return (
-      <Cell
+      <Comp
         key={props.key}
         region={region}
         column={column}
@@ -2295,6 +2303,7 @@ export default class Table<
         testIdBuilder={testIdBuilder?.getChild(
           `cell-${props.rowPath}-${column.index}`
         )}
+        offset={offset}
       />
     );
   }
